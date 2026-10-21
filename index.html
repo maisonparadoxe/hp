@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f4ecd8">
+<title>Liseuse</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Écran de déverrouillage -->
+<section id="verrou" class="ecran">
+  <form id="form-verrou" autocomplete="off">
+    <div class="ornement">❦</div>
+    <label for="mdp">Mot de passe</label>
+    <input id="mdp" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false" required>
+    <label class="case"><input id="memoriser" type="checkbox" checked> Se souvenir de cet appareil</label>
+    <button type="submit" id="btn-ouvrir">Ouvrir</button>
+    <p id="msg-verrou" role="alert"></p>
+  </form>
+</section>
+
+<!-- Liseuse -->
+<main id="liseuse" hidden>
+  <div id="cadre">
+    <div id="flux"></div>
+  </div>
+  <div id="pied">
+    <span id="pied-chap"></span>
+    <span id="pied-page"></span>
+  </div>
+
+  <!-- Barre d'outils (s'affiche en touchant le milieu de la page) -->
+  <div id="barre" hidden>
+    <div class="barre-haut">
+      <button id="btn-sommaire" title="Sommaire">☰</button>
+      <span id="barre-titre"></span>
+      <button id="btn-reglages" title="Réglages">Aa</button>
+    </div>
+    <div class="barre-bas">
+      <input id="curseur" type="range" min="0" max="0" value="0" aria-label="Position dans le chapitre">
+      <div class="lecteur">
+        <button id="btn-prec-chap" title="Chapitre précédent">⏮</button>
+        <button id="btn-lire" title="Lire à voix haute">▶</button>
+        <button id="btn-suiv-chap" title="Chapitre suivant">⏭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Petit lecteur visible pendant la lecture à voix haute -->
+  <div id="mini-lecteur" hidden>
+    <button id="btn-mini-stop" title="Arrêter">■</button>
+    <span>Lecture en cours</span>
+  </div>
+
+  <!-- Sommaire -->
+  <div id="panneau-sommaire" class="panneau" hidden>
+    <div class="panneau-tete"><h2>Sommaire</h2><button class="fermer" data-ferme="panneau-sommaire">✕</button></div>
+    <ol id="liste-chapitres"></ol>
+  </div>
+
+  <!-- Réglages -->
+  <div id="panneau-reglages" class="panneau" hidden>
+    <div class="panneau-tete"><h2>Réglages</h2><button class="fermer" data-ferme="panneau-reglages">✕</button></div>
+    <div class="reglage">
+      <span>Taille du texte</span>
+      <div class="boutons"><button id="btn-taille-moins">A−</button><button id="btn-taille-plus">A+</button></div>
+    </div>
+    <div class="reglage">
+      <span>Thème</span>
+      <div class="boutons" id="choix-theme">
+        <button data-theme="papier">Papier</button>
+        <button data-theme="clair">Clair</button>
+        <button data-theme="nuit">Nuit</button>
+      </div>
+    </div>
+    <div class="reglage">
+      <span>Son des pages</span>
+      <label class="interrupteur"><input id="opt-son" type="checkbox" checked><span></span></label>
+    </div>
+    <div class="reglage">
+      <span>Voix</span>
+      <select id="choix-voix"></select>
+    </div>
+    <div class="reglage">
+      <span>Vitesse de lecture <output id="val-vitesse">1,0</output></span>
+      <input id="vitesse" type="range" min="0.6" max="1.6" step="0.1" value="1">
+    </div>
+    <div class="reglage">
+      <button id="btn-oublier" class="lien">Verrouiller et oublier cet appareil</button>
+    </div>
+  </div>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

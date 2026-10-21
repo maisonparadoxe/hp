@@ -1,0 +1,14 @@
+{
+  "name": "Liseuse",
+  "short_name": "Liseuse",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f4ecd8",
+  "theme_color": "#f4ecd8",
+  "lang": "fr",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
