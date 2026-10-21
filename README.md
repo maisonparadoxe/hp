@@ -14,9 +14,13 @@ Sur le téléphone : ouvrir l'adresse, taper le mot de passe (cocher « Se souve
 
 ## Utilisation
 
+- À la première ouverture, on choisit son marque-page parmi les quatre maisons (on peut en changer depuis l'accueil). Ensuite, chaque ouverture propose **Lire** ou **Écouter**.
+- Le marque-page se pose tout seul quand on quitte le livre (bouton ‹ en haut, ou en changeant d'appli) : un ruban aux couleurs de la maison pend sur la page où l'on s'est arrêté, et l'accueil indique le chapitre.
+- En mode **Écouter**, un lecteur en bas de l'écran permet pause, paragraphe précédent ou suivant, vitesse, et de repasser en lecture.
+
 - Toucher le bord droit ou glisser vers la gauche : page suivante. Bord gauche ou glisser vers la droite : page précédente.
 - Toucher le milieu : barre d'outils (sommaire, réglages, curseur dans le chapitre, lecture à voix haute).
-- Lecture à voix haute : bouton ▶. Elle commence à la page affichée, surligne le paragraphe lu, tourne les pages et enchaîne les chapitres. L'écran reste allumé pendant la lecture (si l'écran se verrouille, la voix s'arrête : c'est une limite des navigateurs). La voix et la vitesse se règlent dans **Aa**. Les voix disponibles dépendent du téléphone ; sur Android, les voix Google « français (France) » sont les plus naturelles (Paramètres > Synthèse vocale).
+- Lecture à voix haute : elle commence au marque-page ou à la page affichée, surligne le paragraphe lu, tourne les pages et enchaîne les chapitres. L'écran reste allumé pendant la lecture (si l'écran se verrouille, la voix s'arrête : c'est une limite des navigateurs). La voix et la vitesse se règlent dans **Aa**. Les voix disponibles dépendent du téléphone ; sur Android, les voix Google « français (France) » sont les plus naturelles (Paramètres > Synthèse vocale).
 - **Verrouiller et oublier cet appareil** (dans Aa) efface la clé mémorisée.
 
 ## Mettre à jour le texte du livre

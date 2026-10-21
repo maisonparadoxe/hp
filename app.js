@@ -4,26 +4,41 @@
 
   const $ = (id) => document.getElementById(id);
   const CLE_STOCKEE = "liseuse.cle";
-  const CLE_POSITION = "liseuse.position";
+  const CLE_MARQUE = "liseuse.marque";
+  const CLE_ANCIENNE_POSITION = "liseuse.position";
   const CLE_PREFS = "liseuse.prefs";
+
+  const MAISONS = {
+    gryffondor:  { nom: "Gryffondor",  tissu: "#7f0909", liseres: "#d3a625", encre: "#8b1a1a", encreNuit: "#d9b04a" },
+    serdaigle:   { nom: "Serdaigle",   tissu: "#0e1a40", liseres: "#946b2d", encre: "#243a78", encreNuit: "#c49a5e" },
+    poufsouffle: { nom: "Poufsouffle", tissu: "#ecb939", liseres: "#372e29", encre: "#8a6410", encreNuit: "#ecb939" },
+    serpentard:  { nom: "Serpentard",  tissu: "#1a472a", liseres: "#aaaaaa", encre: "#1d5e37", encreNuit: "#9cc2a8" },
+  };
 
   const etat = {
     livre: null,
-    chap: 0,       // index du chapitre affiché
-    page: 0,       // page courante dans le chapitre
+    chap: 0,        // index du chapitre affiché
+    page: 0,        // page courante dans le chapitre
     nbPages: 1,
-    largeur: 0,    // largeur d'une page (px)
-    gouttiere: 44, // espace entre deux colonnes (px)
-    paras: [],     // éléments <p> du chapitre, dans l'ordre
+    largeur: 0,     // largeur d'une page, ou d'une double page (px)
+    gouttiere: 40,  // espace entre deux colonnes (px)
+    paras: [],      // éléments <p> du chapitre, dans l'ordre
+    mode: "lire",   // "lire" ou "ecouter"
   };
 
   const prefs = Object.assign({
-    taille: 19,
+    taille: window.innerWidth < 370 ? 18 : 19,
     theme: matchMedia("(prefers-color-scheme: dark)").matches ? "nuit" : "papier",
+    align: "justify",
     son: true,
+    vibre: false,
     voix: "",
     vitesse: 1,
+    maison: "",
   }, lire(CLE_PREFS) || {});
+
+  // Le marque-page : { c: chapitre, p: paragraphe }
+  let marque = lire(CLE_MARQUE) || lire(CLE_ANCIENNE_POSITION);
 
   /* ---------- Petits outils ---------- */
 
@@ -41,6 +56,22 @@
   const echapper = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const enHtml = (s) => echapper(s).replace(/\*([^*]+)\*/g, "<em>$1</em>");
   const enTexte = (s) => s.replace(/\*/g, "");
+  const nomChapitre = (ch) => (ch.num === 0 ? "Prologue" : "Chapitre " + ch.num);
+
+  let numRuban = 0;
+  function svgRuban(maison) {
+    const m = MAISONS[maison] || MAISONS.gryffondor;
+    const id = "soie" + (++numRuban);
+    return '<svg viewBox="0 0 20 100" preserveAspectRatio="none">' +
+      '<defs><linearGradient id="' + id + '" x1="0" x2="1">' +
+      '<stop offset="0" stop-color="#000" stop-opacity=".18"/>' +
+      '<stop offset=".35" stop-color="#fff" stop-opacity=".16"/>' +
+      '<stop offset=".6" stop-color="#fff" stop-opacity="0"/>' +
+      '<stop offset="1" stop-color="#000" stop-opacity=".22"/></linearGradient></defs>' +
+      '<path d="M0 0H20V100L10 89L0 100Z" fill="' + m.tissu + '"/>' +
+      '<path d="M3 0H5.2V96.4L3 98.2ZM14.8 0H17V98.2L14.8 96.4Z" fill="' + m.liseres + '"/>' +
+      '<path d="M0 0H20V100L10 89L0 100Z" fill="url(#' + id + ')"/></svg>';
+  }
 
   /* ---------- Déchiffrement ---------- */
 
@@ -83,7 +114,7 @@
     if (memo) {
       try {
         const cle = await crypto.subtle.importKey("raw", b64versOctets(memo), "AES-GCM", false, ["decrypt"]);
-        ouvrirLivre(await dechiffrer(cle, fichier));
+        livreOuvert(await dechiffrer(cle, fichier));
         return;
       } catch (e) {
         ecrire(CLE_STOCKEE, null); // le livre a été reconstruit, ou la clé est abîmée
@@ -101,7 +132,8 @@
         const livre = await dechiffrer(cle, fichier);
         if (memoriser) ecrire(CLE_STOCKEE, octetsVersB64(await crypto.subtle.exportKey("raw", cle)));
         $("mdp").value = "";
-        ouvrirLivre(livre);
+        $("mdp").blur();
+        livreOuvert(livre);
       } catch (e) {
         $("msg-verrou").textContent = "Mot de passe incorrect.";
         $("mdp").select();
@@ -109,20 +141,96 @@
         bouton.disabled = false;
       }
     });
-    $("mdp").focus();
+  }
+
+  function livreOuvert(livre) {
+    etat.livre = livre;
+    document.title = livre.titre;
+    document.querySelectorAll(".titre-livre").forEach((h) => (h.textContent = livre.titre));
+    if (marque && !(marque.c >= 0 && marque.c < livre.chapitres.length)) marque = null;
+    remplirSommaire();
+    $("verrou").hidden = true;
+    afficherAccueil();
+  }
+
+  /* ---------- Accueil ---------- */
+
+  function afficherAccueil() {
+    $("liseuse").hidden = true;
+    $("accueil").hidden = false;
+    if (!prefs.maison) {
+      $("accueil-mode").hidden = true;
+      $("accueil-maisons").hidden = false;
+      return;
+    }
+    $("accueil-maisons").hidden = true;
+    $("accueil-mode").hidden = false;
+    const grand = $("grand-ruban");
+    grand.innerHTML = svgRuban(prefs.maison);
+    grand.style.animation = "none"; void grand.offsetWidth; grand.style.animation = "";
+
+    const ou = $("ou-reprendre");
+    if (marque && (marque.c > 0 || marque.p > 0)) {
+      const ch = etat.livre.chapitres[marque.c];
+      ou.innerHTML = "Votre marque-page vous attend<br><b>" + echapper(nomChapitre(ch)) + " · " + echapper(ch.titre) + "</b>";
+    } else {
+      ou.textContent = "Comment voulez-vous découvrir l'histoire ?";
+    }
+  }
+
+  document.querySelectorAll(".maisons button").forEach((b) => {
+    b.querySelector(".ruban-carte").innerHTML = svgRuban(b.dataset.maison);
+    b.addEventListener("click", () => {
+      prefs.maison = b.dataset.maison;
+      appliquerPrefs();
+      afficherAccueil();
+    });
+  });
+  $("btn-changer-maison").addEventListener("click", () => {
+    $("accueil-mode").hidden = true;
+    $("accueil-maisons").hidden = false;
+    document.querySelectorAll(".maisons button").forEach((b) => b.classList.toggle("choisie", b.dataset.maison === prefs.maison));
+  });
+  $("btn-mode-lire").addEventListener("click", () => ouvrirLiseuse("lire"));
+  $("btn-mode-ecouter").addEventListener("click", () => ouvrirLiseuse("ecouter"));
+
+  async function ouvrirLiseuse(mode) {
+    contexteAudio(); // le son doit être débloqué par un geste
+    $("accueil").hidden = true;
+    $("liseuse").hidden = false;
+    reglerMode(mode);
+    await policesPretes();
+    const m = marque || { c: 0, p: -1 };
+    afficherChapitre(m.c, { para: m.p });
+    if (mode === "ecouter") demarrerLecture(m.c === etat.chap ? m.p : -1);
+  }
+
+  function reglerMode(mode) {
+    etat.mode = mode;
+    document.body.classList.toggle("mode-ecouter", mode === "ecouter");
+    $("lecteur").hidden = mode !== "ecouter";
+    majLecteur();
+  }
+
+  function changerMode(mode) {
+    if (mode === etat.mode) return;
+    const bloc = lecture.actif ? lecture.bloc : blocVisible();
+    if (mode === "lire") arreterLecture();
+    reglerMode(mode);
+    afficherChapitre(etat.chap, { para: bloc });
+    if (mode === "ecouter") demarrerLecture(bloc);
   }
 
   /* ---------- Mise en page ---------- */
 
-  function ouvrirLivre(livre) {
-    etat.livre = livre;
-    document.title = livre.titre;
-    $("verrou").hidden = true;
-    $("liseuse").hidden = false;
-    remplirSommaire();
-    const pos = lire(CLE_POSITION) || { c: 0, p: -1 };
-    const c = Math.min(Math.max(pos.c | 0, 0), livre.chapitres.length - 1);
-    afficherChapitre(c, { para: pos.p });
+  // Attend la police du livre (sinon la pagination change quand elle arrive)
+  function policesPretes() {
+    if (!document.fonts || !document.fonts.load) return Promise.resolve();
+    const attente = Promise.all([
+      document.fonts.load(prefs.taille + 'px "Literata"'),
+      document.fonts.load("italic " + prefs.taille + 'px "Literata"'),
+    ]).catch(() => {});
+    return Promise.race([attente, new Promise((r) => setTimeout(r, 2500))]);
   }
 
   function construireChapitre(ch) {
@@ -131,7 +239,7 @@
       '<div class="num">' + echapper(ch.label) + "</div>",
       "<h1>" + echapper(ch.titre) + "</h1>",
       '<div class="orn">❦</div>',
-      ch.num === 0 ? '<div class="titre-livre">' + echapper(etat.livre.titre) + "</div>" : "",
+      ch.num === 0 ? '<div class="titre-livre-petit">' + echapper(etat.livre.titre) + "</div>" : "",
       "</div>",
     ];
     let premier = true, apresScene = false;
@@ -165,18 +273,25 @@
     allerPage(page, false);
 
     $("pied-chap").textContent = ch.num === 0 ? ch.titre : ch.label + " · " + ch.titre;
-    $("barre-titre").textContent = ch.label;
+    $("barre-titre").textContent = nomChapitre(ch) + " · " + ch.titre;
     marquerSommaire();
+    majLecteur();
     setAmbiance(ch.ambiance);
   }
 
   function paginer() {
     const flux = $("flux");
     const cadre = $("cadre");
-    etat.largeur = cadre.clientWidth;
-    etat.gouttiere = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--gouttiere")) || 44;
-    flux.style.width = etat.largeur + "px";
-    flux.style.columnWidth = etat.largeur + "px";
+    const largeur = cadre.clientWidth;
+    const gouttiere = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--gouttiere")) || 40;
+    // Écran large (téléphone à l'horizontale, tablette) : deux pages côte à côte
+    const double = largeur > 720 && largeur > cadre.clientHeight * 1.2;
+    etat.largeur = largeur;
+    etat.gouttiere = gouttiere;
+    flux.style.width = largeur + "px";
+    flux.style.columnWidth = (double ? (largeur - gouttiere) / 2 : largeur) + "px";
+    flux.style.columnCount = double ? "auto" : "";
+    flux.classList.remove("anime");
     flux.style.transform = "translateX(0)";
     const dernier = flux.lastElementChild;
     etat.nbPages = dernier ? pageDeRect(dernier.getClientRects(), true) + 1 : 1;
@@ -192,11 +307,19 @@
   }
 
   function pageDuBloc(i) {
+    if (i == null || i < 0) return 0;
     const el = $("flux").querySelector('p[data-i="' + i + '"]');
     return el ? pageDeRect(el.getClientRects()) : 0;
   }
 
-  // Premier paragraphe visible sur la page courante (pour mémoriser la position)
+  function blocSurPage(i, page) {
+    const el = $("flux").querySelector('p[data-i="' + i + '"]');
+    if (!el) return false;
+    const rects = el.getClientRects();
+    return pageDeRect(rects) <= page && pageDeRect(rects, true) >= page;
+  }
+
+  // Premier paragraphe visible sur la page courante
   function blocVisible() {
     let candidat = null;
     for (const p of etat.paras) {
@@ -217,18 +340,20 @@
     flux.style.transform = "translateX(" + (-n * (etat.largeur + etat.gouttiere)) + "px)";
     $("pied-page").textContent = (n + 1) + " / " + etat.nbPages;
     $("curseur").value = n;
-    memoriserPosition();
+    $("curseur-txt").textContent = "p. " + (n + 1) + "/" + etat.nbPages;
+    majRuban();
   }
 
-  function memoriserPosition() {
-    ecrire(CLE_POSITION, { c: etat.chap, p: blocVisible() });
+  function retourPhysique() {
+    if (prefs.vibre && navigator.vibrate) navigator.vibrate(8);
+    sonPage();
   }
 
   function pageSuivante() {
     if (etat.page < etat.nbPages - 1) allerPage(etat.page + 1, true);
     else if (etat.chap < etat.livre.chapitres.length - 1) afficherChapitre(etat.chap + 1);
     else return false;
-    sonPage();
+    retourPhysique();
     return true;
   }
 
@@ -236,18 +361,63 @@
     if (etat.page > 0) allerPage(etat.page - 1, true);
     else if (etat.chap > 0) afficherChapitre(etat.chap - 1, { fin: true });
     else { allerPage(0, true); return; }
-    sonPage();
+    retourPhysique();
   }
 
   let attenteRedim = null;
-  window.addEventListener("resize", () => {
-    if (!etat.livre) return;
+  function repaginerPlusTard() {
+    if (!etat.livre || $("liseuse").hidden) return;
     clearTimeout(attenteRedim);
     attenteRedim = setTimeout(() => {
       const bloc = lecture.actif ? lecture.bloc : blocVisible();
       afficherChapitre(etat.chap, { para: bloc });
       if (lecture.actif) surligner(lecture.bloc);
     }, 200);
+  }
+  window.addEventListener("resize", repaginerPlusTard);
+  if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener("loadingdone", repaginerPlusTard);
+
+  /* ---------- Marque-page ---------- */
+
+  function poserMarque() {
+    if (!etat.livre || $("liseuse").hidden) return;
+    const p = lecture.actif || (etat.mode === "ecouter" && lecture.bloc >= 0 && lecture.chap === etat.chap && blocSurPage(lecture.bloc, etat.page))
+      ? lecture.bloc : blocVisible();
+    marque = { c: etat.chap, p: p };
+    ecrire(CLE_MARQUE, marque);
+    marquerSommaire();
+    majRuban();
+  }
+
+  function majRuban() {
+    const r = $("ruban");
+    const visible = !!(marque && prefs.maison && marque.c === etat.chap && pageDuBloc(marque.p) === etat.page);
+    r.classList.toggle("visible", visible);
+  }
+
+  $("btn-aller-marque").addEventListener("click", () => {
+    if (!marque) return;
+    arreterLecture();
+    masquerBarre();
+    afficherChapitre(marque.c, { para: marque.p });
+    retourPhysique();
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") poserMarque();
+    else if (lecture.actif) garderEcranAllume();
+  });
+  window.addEventListener("pagehide", poserMarque);
+
+  $("btn-fermer").addEventListener("click", () => {
+    masquerBarre();
+    arreterLecture();
+    poserMarque();
+    const r = $("ruban");
+    r.classList.remove("visible");
+    void r.offsetWidth;
+    r.classList.add("visible");
+    setTimeout(() => { reglerMode("lire"); afficherAccueil(); }, 650);
   });
 
   /* ---------- Son de page (synthétisé, aucun fichier audio) ---------- */
@@ -303,22 +473,22 @@
 
   /* ---------- Gestes : glisser et toucher ---------- */
 
-  const geste = { actif: false, x: 0, y: 0, dx: 0, t: 0 };
-  const cadre = $("cadre");
+  const geste = { actif: false, x: 0, y: 0 };
   const zone = $("liseuse");
+  const HORS_GESTES = ".panneau, #barre .barre-haut, #barre .barre-bas, #lecteur";
 
   zone.addEventListener("pointerdown", (ev) => {
-    if (ev.target.closest(".panneau, #barre .barre-haut, #barre .barre-bas, #mini-lecteur")) return;
-    geste.actif = true; geste.x = ev.clientX; geste.y = ev.clientY; geste.dx = 0; geste.t = Date.now();
+    if (ev.target.closest(HORS_GESTES)) return;
+    geste.actif = true; geste.x = ev.clientX; geste.y = ev.clientY;
     contexteAudio();
   });
   zone.addEventListener("pointermove", (ev) => {
     if (!geste.actif || !$("barre").hidden) return;
-    geste.dx = ev.clientX - geste.x;
-    if (Math.abs(geste.dx) > 8 && Math.abs(geste.dx) > Math.abs(ev.clientY - geste.y)) {
+    const dx = ev.clientX - geste.x;
+    if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(ev.clientY - geste.y)) {
       const flux = $("flux");
       flux.classList.remove("anime");
-      flux.style.transform = "translateX(" + (-etat.page * (etat.largeur + etat.gouttiere) + geste.dx) + "px)";
+      flux.style.transform = "translateX(" + (-etat.page * (etat.largeur + etat.gouttiere) + dx) + "px)";
     }
   });
   zone.addEventListener("pointerup", (ev) => {
@@ -342,7 +512,7 @@
   zone.addEventListener("pointercancel", () => { geste.actif = false; allerPage(etat.page, true); });
 
   document.addEventListener("keydown", (ev) => {
-    if (!etat.livre || ev.target.tagName === "INPUT" || ev.target.tagName === "SELECT") return;
+    if (!etat.livre || $("liseuse").hidden || ev.target.tagName === "INPUT" || ev.target.tagName === "SELECT") return;
     if (ev.key === "ArrowRight" || ev.key === "PageDown" || ev.key === " ") { arreterLecture(); pageSuivante(); ev.preventDefault(); }
     else if (ev.key === "ArrowLeft" || ev.key === "PageUp") { arreterLecture(); pagePrecedente(); ev.preventDefault(); }
     else if (ev.key === "Escape") { fermerPanneaux(); masquerBarre(); }
@@ -365,15 +535,7 @@
   });
   $("btn-reglages").addEventListener("click", () => { masquerBarre(); $("panneau-reglages").hidden = false; });
   $("curseur").addEventListener("input", (ev) => { arreterLecture(); allerPage(+ev.target.value, false); });
-  $("btn-prec-chap").addEventListener("click", () => {
-    arreterLecture();
-    afficherChapitre(etat.page > 0 ? etat.chap : Math.max(etat.chap - 1, 0));
-    sonPage();
-  });
-  $("btn-suiv-chap").addEventListener("click", () => {
-    arreterLecture();
-    if (etat.chap < etat.livre.chapitres.length - 1) { afficherChapitre(etat.chap + 1); sonPage(); }
-  });
+  $("btn-vers-ecouter").addEventListener("click", () => { masquerBarre(); changerMode("ecouter"); });
 
   function remplirSommaire() {
     const liste = $("liste-chapitres");
@@ -383,10 +545,13 @@
       const b = document.createElement("button");
       b.innerHTML = '<span class="n">' + (ch.num === 0 ? "Prologue" : "Ch. " + ch.num) + "</span><span>" + echapper(ch.titre) + "</span>";
       b.addEventListener("click", () => {
+        const enEcoute = lecture.actif;
         arreterLecture();
         fermerPanneaux();
-        afficherChapitre(c);
-        sonPage();
+        if (marque && marque.c === c) afficherChapitre(c, { para: marque.p });
+        else afficherChapitre(c);
+        retourPhysique();
+        if (enEcoute) demarrerLecture();
       });
       li.appendChild(b);
       liste.appendChild(li);
@@ -394,34 +559,78 @@
   }
 
   function marquerSommaire() {
-    $("liste-chapitres").querySelectorAll("li").forEach((li, c) => li.classList.toggle("courant", c === etat.chap));
+    $("liste-chapitres").querySelectorAll("li").forEach((li, c) => {
+      li.classList.toggle("courant", c === etat.chap);
+      const bouton = li.firstChild;
+      let signet = bouton.querySelector(".signet");
+      if (marque && marque.c === c && prefs.maison) {
+        if (!signet) {
+          signet = document.createElement("span");
+          signet.className = "signet";
+          signet.innerHTML = svgRuban(prefs.maison);
+          bouton.appendChild(signet);
+        }
+      } else if (signet) signet.remove();
+    });
   }
 
   function appliquerPrefs() {
-    document.documentElement.style.setProperty("--taille", prefs.taille + "px");
-    document.documentElement.dataset.theme = prefs.theme;
-    const couleurs = { papier: "#f4ecd8", clair: "#ffffff", nuit: "#15130f" };
+    const racine = document.documentElement;
+    racine.style.setProperty("--taille", prefs.taille + "px");
+    racine.style.setProperty("--align", prefs.align);
+    racine.dataset.theme = prefs.theme;
+    const m = MAISONS[prefs.maison];
+    if (m) racine.style.setProperty("--encre", prefs.theme === "nuit" ? m.encreNuit : m.encre);
+    else racine.style.removeProperty("--encre");
+    const couleurs = { papier: "#f4ecd8", clair: "#ffffff", nuit: "#14120f" };
     document.querySelector('meta[name="theme-color"]').content = couleurs[prefs.theme] || couleurs.papier;
     document.querySelectorAll("#choix-theme button").forEach((b) => b.classList.toggle("actif", b.dataset.theme === prefs.theme));
+    document.querySelectorAll("#choix-align button").forEach((b) => b.classList.toggle("actif", b.dataset.align === prefs.align));
     $("opt-son").checked = prefs.son;
+    $("opt-vibre").checked = prefs.vibre;
     $("vitesse").value = prefs.vitesse;
     $("val-vitesse").textContent = (+prefs.vitesse).toFixed(1).replace(".", ",");
+    $("btn-vitesse").textContent = (+prefs.vitesse).toFixed(1).replace(".", ",").replace(",0", "") + "×";
+    $("ruban").innerHTML = prefs.maison ? svgRuban(prefs.maison) : "";
     ecrire(CLE_PREFS, prefs);
   }
 
+  function repaginerIci() {
+    if (!etat.livre || $("liseuse").hidden) return;
+    const bloc = lecture.actif ? lecture.bloc : blocVisible();
+    afficherChapitre(etat.chap, { para: bloc });
+    if (lecture.actif) surligner(lecture.bloc);
+  }
+
   function changerTaille(delta) {
-    const bloc = blocVisible();
     prefs.taille = Math.min(Math.max(prefs.taille + delta, 14), 30);
     appliquerPrefs();
-    afficherChapitre(etat.chap, { para: bloc });
+    policesPretes().then(repaginerIci);
   }
   $("btn-taille-moins").addEventListener("click", () => changerTaille(-1));
   $("btn-taille-plus").addEventListener("click", () => changerTaille(1));
   document.querySelectorAll("#choix-theme button").forEach((b) =>
     b.addEventListener("click", () => { prefs.theme = b.dataset.theme; appliquerPrefs(); }));
+  document.querySelectorAll("#choix-align button").forEach((b) =>
+    b.addEventListener("click", () => { prefs.align = b.dataset.align; appliquerPrefs(); repaginerIci(); }));
   $("opt-son").addEventListener("change", (ev) => { prefs.son = ev.target.checked; appliquerPrefs(); });
+  $("opt-vibre").addEventListener("change", (ev) => {
+    prefs.vibre = ev.target.checked; appliquerPrefs();
+    if (prefs.vibre && navigator.vibrate) navigator.vibrate(8);
+  });
   $("vitesse").addEventListener("input", (ev) => { prefs.vitesse = +ev.target.value; appliquerPrefs(); });
-  $("choix-voix").addEventListener("change", (ev) => { prefs.voix = ev.target.value; appliquerPrefs(); });
+  $("vitesse").addEventListener("change", relancerParagraphe);
+  $("choix-voix").addEventListener("change", (ev) => { prefs.voix = ev.target.value; appliquerPrefs(); relancerParagraphe(); });
+  if (!navigator.vibrate) $("opt-vibre").closest(".reglage").hidden = true;
+
+  // Plein écran (Android ; l'iPhone ne le permet pas, il faut « Ajouter à l'écran d'accueil »)
+  const pleinEcranPossible = !!document.documentElement.requestFullscreen;
+  if (!pleinEcranPossible) $("ligne-plein-ecran").hidden = true;
+  $("opt-plein").addEventListener("change", (ev) => {
+    if (ev.target.checked) document.documentElement.requestFullscreen().catch(() => (ev.target.checked = false));
+    else if (document.fullscreenElement) document.exitFullscreen();
+  });
+  document.addEventListener("fullscreenchange", () => { $("opt-plein").checked = !!document.fullscreenElement; });
 
   $("btn-oublier").addEventListener("click", () => {
     arreterLecture();
@@ -432,7 +641,7 @@
   /* ---------- Lecture à voix haute ---------- */
 
   const synth = window.speechSynthesis;
-  const lecture = { actif: false, bloc: -1, morceaux: [], n: 0, generation: 0, enCours: null, verrouEcran: null };
+  const lecture = { actif: false, chap: -1, bloc: -1, morceaux: [], n: 0, generation: 0, enCours: null, verrouEcran: null };
 
   function voixFrancaises() {
     if (!synth) return [];
@@ -458,10 +667,12 @@
   }
   if (synth) {
     remplirVoix();
-    synth.addEventListener ? synth.addEventListener("voiceschanged", remplirVoix) : (synth.onvoiceschanged = remplirVoix);
+    if (synth.addEventListener) synth.addEventListener("voiceschanged", remplirVoix);
+    else synth.onvoiceschanged = remplirVoix;
   } else {
-    $("btn-lire").disabled = true;
-    $("btn-lire").title = "Lecture à voix haute indisponible sur ce navigateur";
+    $("btn-mode-ecouter").disabled = true;
+    $("btn-mode-ecouter").querySelector("span").textContent = "Écouter (indisponible)";
+    $("btn-vers-ecouter").hidden = true;
   }
 
   function voixChoisie() {
@@ -495,6 +706,7 @@
     const el = $("flux").querySelector('p[data-i="' + i + '"]');
     if (!el) return;
     const rects = el.getClientRects();
+    if (!rects.length) return;
     const r = rects[Math.min(Math.floor(fraction * rects.length), rects.length - 1)];
     const page = pageDeRect([r]);
     if (page !== etat.page) {
@@ -522,12 +734,13 @@
 
   function lireBloc(i) {
     if (!lecture.actif) return;
+    lecture.chap = etat.chap;
     lecture.bloc = i;
     surligner(i);
     const texte = enTexte(etat.livre.chapitres[etat.chap].blocs[i].x);
     lecture.morceaux = decouper(texte);
     lecture.n = 0;
-    ecrire(CLE_POSITION, { c: etat.chap, p: i });
+    majLecteur();
     lireMorceau(texte.length);
   }
 
@@ -548,7 +761,8 @@
     if (k >= 0 && k < liste.length - 1) {
       const suivant = liste[k + 1];
       const pause = etat.livre.chapitres[etat.chap].blocs[suivant - 1].t === "break";
-      if (pause) setTimeout(() => lireBloc(suivant), 900);
+      const gen = lecture.generation;
+      if (pause) setTimeout(() => { if (gen === lecture.generation) lireBloc(suivant); }, 900);
       else lireBloc(suivant);
       return;
     }
@@ -557,10 +771,12 @@
       afficherChapitre(etat.chap + 1);
       sonPage();
       const ch = etat.livre.chapitres[etat.chap];
-      const annonce = (ch.num === 0 ? "Prologue" : "Chapitre " + ch.num) + ". " + ch.titre + ".";
+      const annonce = nomChapitre(ch) + ". " + ch.titre + ".";
+      const gen = lecture.generation;
       setTimeout(() => {
-        if (!lecture.actif) return;
+        if (!lecture.actif || gen !== lecture.generation) return;
         parler(annonce, () => setTimeout(() => {
+          if (gen !== lecture.generation) return;
           const l = blocsLisibles(etat.chap);
           if (l.length) lireBloc(l[0]); else arreterLecture();
         }, 700));
@@ -570,18 +786,15 @@
     }
   }
 
-  async function demarrerLecture() {
+  // depart : paragraphe par lequel commencer (sinon le premier de la page affichée)
+  function demarrerLecture(depart) {
     if (!synth) return;
     lecture.generation++;
     synth.cancel();
     lecture.actif = true;
-    $("btn-lire").textContent = "■";
-    $("btn-lire").title = "Arrêter la lecture";
-    $("mini-lecteur").hidden = false;
-    masquerBarre();
     garderEcranAllume();
-    let depart = blocVisible();
     const liste = blocsLisibles(etat.chap);
+    if (depart == null || depart < 0 || liste.indexOf(depart) < 0) depart = blocVisible();
     if (depart < 0) depart = liste[0];
     if (depart == null) { arreterLecture(); return; }
     lireBloc(depart);
@@ -592,16 +805,47 @@
     lecture.actif = false;
     lecture.generation++;
     if (synth) synth.cancel();
-    surligner(-1);
-    $("btn-lire").textContent = "▶";
-    $("btn-lire").title = "Lire à voix haute";
-    $("mini-lecteur").hidden = true;
+    if (etat.mode !== "ecouter") surligner(-1);
     if (lecture.verrouEcran) { lecture.verrouEcran.release().catch(() => {}); lecture.verrouEcran = null; }
-    memoriserPosition();
+    majLecteur();
   }
 
-  $("btn-lire").addEventListener("click", () => (lecture.actif ? arreterLecture() : demarrerLecture()));
-  $("btn-mini-stop").addEventListener("click", arreterLecture);
+  function relancerParagraphe() {
+    if (lecture.actif) demarrerLecture(lecture.bloc);
+  }
+
+  // Reprend là où la voix s'était arrêtée, si ce passage est encore à l'écran
+  function reprendre() {
+    if (lecture.chap === etat.chap && lecture.bloc >= 0 && blocSurPage(lecture.bloc, etat.page)) demarrerLecture(lecture.bloc);
+    else demarrerLecture();
+  }
+
+  function sauterParagraphe(sens) {
+    const liste = blocsLisibles(etat.chap);
+    let k = lecture.chap === etat.chap ? liste.indexOf(lecture.bloc) : -1;
+    if (k < 0) k = Math.max(liste.indexOf(blocVisible()), 0);
+    else k = Math.min(Math.max(k + sens, 0), liste.length - 1);
+    demarrerLecture(liste[k]);
+  }
+
+  function majLecteur() {
+    if (!etat.livre) return;
+    $("btn-lecture").classList.toggle("en-cours", lecture.actif);
+    const ch = etat.livre.chapitres[etat.chap];
+    $("lecteur-info").textContent = (lecture.actif ? "" : "En pause · ") + nomChapitre(ch) + " · " + ch.titre;
+  }
+
+  $("btn-lecture").addEventListener("click", () => (lecture.actif ? arreterLecture() : reprendre()));
+  $("btn-para-prec").addEventListener("click", () => sauterParagraphe(-1));
+  $("btn-para-suiv").addEventListener("click", () => sauterParagraphe(1));
+  $("btn-vers-lire").addEventListener("click", () => changerMode("lire"));
+  $("btn-vitesse").addEventListener("click", () => {
+    const vitesses = [0.8, 1, 1.2, 1.4];
+    const k = vitesses.indexOf(+prefs.vitesse);
+    prefs.vitesse = vitesses[(k + 1) % vitesses.length];
+    appliquerPrefs();
+    relancerParagraphe();
+  });
 
   // Empêche l'écran de se mettre en veille pendant la lecture (sinon la voix s'arrête)
   async function garderEcranAllume() {
@@ -612,9 +856,6 @@
       lecture.verrouEcran = v;
     } catch (e) { /* pas grave */ }
   }
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && lecture.actif) garderEcranAllume();
-  });
   window.addEventListener("beforeunload", () => { if (synth) synth.cancel(); });
 
   /* ---------- Hors ligne ---------- */

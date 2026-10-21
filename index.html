@@ -2,18 +2,24 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#f4ecd8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Liseuse">
+<meta name="format-detection" content="telephone=no">
 <title>Liseuse</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
+<link rel="preload" href="polices/literata-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- Écran de déverrouillage -->
+<!-- Mot de passe -->
 <section id="verrou" class="ecran">
   <form id="form-verrou" autocomplete="off">
     <div class="ornement">❦</div>
@@ -25,37 +31,95 @@
   </form>
 </section>
 
+<!-- Accueil : choix du marque-page, puis Lire ou Écouter -->
+<section id="accueil" class="ecran" hidden>
+  <div id="accueil-maisons" class="accueil-bloc" hidden>
+    <h1 class="titre-livre"></h1>
+    <p class="consigne">Choisissez votre marque-page</p>
+    <div class="maisons">
+      <button data-maison="gryffondor"><span class="ruban-carte"></span><b>Gryffondor</b></button>
+      <button data-maison="serdaigle"><span class="ruban-carte"></span><b>Serdaigle</b></button>
+      <button data-maison="poufsouffle"><span class="ruban-carte"></span><b>Poufsouffle</b></button>
+      <button data-maison="serpentard"><span class="ruban-carte"></span><b>Serpentard</b></button>
+    </div>
+  </div>
+
+  <div id="accueil-mode" class="accueil-bloc" hidden>
+    <div id="grand-ruban"></div>
+    <h1 class="titre-livre"></h1>
+    <p id="ou-reprendre"></p>
+    <div class="choix-mode">
+      <button id="btn-mode-lire" class="gros">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6c-2-1.4-5-1.8-8-1.5v13c3-.3 6 .1 8 1.5 2-1.4 5-1.8 8-1.5v-13c-3-.3-6 .1-8 1.5zM12 6v13"/></svg>
+        <span>Lire</span>
+      </button>
+      <button id="btn-mode-ecouter" class="gros">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15v-3a8 8 0 0 1 16 0v3M4 15a2 2 0 0 1 2-2h1v6H6a2 2 0 0 1-2-2zM20 15a2 2 0 0 0-2-2h-1v6h1a2 2 0 0 0 2-2z"/></svg>
+        <span>Écouter</span>
+      </button>
+    </div>
+    <button id="btn-changer-maison" class="lien">Changer de marque-page</button>
+  </div>
+</section>
+
 <!-- Liseuse -->
 <main id="liseuse" hidden>
   <div id="cadre">
     <div id="flux"></div>
   </div>
+  <div id="ruban" aria-hidden="true"></div>
   <div id="pied">
     <span id="pied-chap"></span>
     <span id="pied-page"></span>
   </div>
 
-  <!-- Barre d'outils (s'affiche en touchant le milieu de la page) -->
+  <!-- Lecteur audio (mode Écouter) -->
+  <div id="lecteur" hidden>
+    <div id="lecteur-info"></div>
+    <div class="lecteur-boutons">
+      <button id="btn-vitesse" class="petit" title="Vitesse">1×</button>
+      <button id="btn-para-prec" title="Paragraphe précédent">
+        <svg viewBox="0 0 24 24"><path d="M6 5v14M19 5L9 12l10 7z"/></svg>
+      </button>
+      <button id="btn-lecture" class="principal" title="Lecture / pause">
+        <svg class="ico-play" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg>
+        <svg class="ico-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>
+      </button>
+      <button id="btn-para-suiv" title="Paragraphe suivant">
+        <svg viewBox="0 0 24 24"><path d="M18 5v14M5 5l10 7-10 7z"/></svg>
+      </button>
+      <button id="btn-vers-lire" class="petit" title="Passer en lecture">
+        <svg viewBox="0 0 24 24"><path d="M12 6c-2-1.4-5-1.8-8-1.5v13c3-.3 6 .1 8 1.5 2-1.4 5-1.8 8-1.5v-13c-3-.3-6 .1-8 1.5zM12 6v13"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Barre d'outils (toucher le milieu de la page) -->
   <div id="barre" hidden>
     <div class="barre-haut">
-      <button id="btn-sommaire" title="Sommaire">☰</button>
+      <button id="btn-fermer" title="Fermer le livre">
+        <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
       <span id="barre-titre"></span>
       <button id="btn-reglages" title="Réglages">Aa</button>
     </div>
     <div class="barre-bas">
-      <input id="curseur" type="range" min="0" max="0" value="0" aria-label="Position dans le chapitre">
-      <div class="lecteur">
-        <button id="btn-prec-chap" title="Chapitre précédent">⏮</button>
-        <button id="btn-lire" title="Lire à voix haute">▶</button>
-        <button id="btn-suiv-chap" title="Chapitre suivant">⏭</button>
+      <div class="curseur-ligne">
+        <input id="curseur" type="range" min="0" max="0" value="0" aria-label="Position dans le chapitre">
+        <span id="curseur-txt"></span>
+      </div>
+      <div class="actions">
+        <button id="btn-sommaire">
+          <svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/></svg><span>Sommaire</span>
+        </button>
+        <button id="btn-aller-marque">
+          <svg viewBox="0 0 24 24"><path d="M7 3h10v18l-5-4-5 4z"/></svg><span>Marque-page</span>
+        </button>
+        <button id="btn-vers-ecouter">
+          <svg viewBox="0 0 24 24"><path d="M4 15v-3a8 8 0 0 1 16 0v3M4 15a2 2 0 0 1 2-2h1v6H6a2 2 0 0 1-2-2zM20 15a2 2 0 0 0-2-2h-1v6h1a2 2 0 0 0 2-2z"/></svg><span>Écouter</span>
+        </button>
       </div>
     </div>
-  </div>
-
-  <!-- Petit lecteur visible pendant la lecture à voix haute -->
-  <div id="mini-lecteur" hidden>
-    <button id="btn-mini-stop" title="Arrêter">■</button>
-    <span>Lecture en cours</span>
   </div>
 
   <!-- Sommaire -->
@@ -80,8 +144,23 @@
       </div>
     </div>
     <div class="reglage">
+      <span>Alignement</span>
+      <div class="boutons" id="choix-align">
+        <button data-align="justify">Justifié</button>
+        <button data-align="left">À gauche</button>
+      </div>
+    </div>
+    <div class="reglage ligne">
       <span>Son des pages</span>
       <label class="interrupteur"><input id="opt-son" type="checkbox" checked><span></span></label>
+    </div>
+    <div class="reglage ligne">
+      <span>Vibration en tournant</span>
+      <label class="interrupteur"><input id="opt-vibre" type="checkbox"><span></span></label>
+    </div>
+    <div class="reglage ligne" id="ligne-plein-ecran">
+      <span>Plein écran</span>
+      <label class="interrupteur"><input id="opt-plein" type="checkbox"><span></span></label>
     </div>
     <div class="reglage">
       <span>Voix</span>
