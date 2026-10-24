@@ -24,6 +24,9 @@
     gouttiere: 40,  // espace entre deux colonnes (px)
     paras: [],      // éléments <p> du chapitre, dans l'ordre
     mode: "lire",   // "lire" ou "ecouter"
+    cle: null,      // clé du livre, pour ouvrir aussi les illustrations chiffrées
+    illus: {},      // numéro de chapitre -> fichier de son illustration
+    pageTitre: 0,   // page du titre (1 quand l'illustration occupe seule la première page)
   };
 
   const prefs = Object.assign({
@@ -116,7 +119,7 @@
     if (memo) {
       try {
         const cle = await crypto.subtle.importKey("raw", b64versOctets(memo), "AES-GCM", false, ["decrypt"]);
-        livreOuvert(await dechiffrer(cle, fichier));
+        livreOuvert(await dechiffrer(cle, fichier), cle);
         return;
       } catch (e) {
         ecrire(CLE_STOCKEE, null); // le livre a été reconstruit, ou la clé est abîmée
@@ -137,7 +140,7 @@
         $("mdp").value = "";
         $("mdp").blur();
         if (effets()) await mefaitAccompli();
-        livreOuvert(livre);
+        livreOuvert(livre, cle);
       } catch (e) {
         $("msg-verrou").textContent = "Mot de passe incorrect.";
         $("mdp").select();
@@ -207,8 +210,10 @@
     await attendre(900);
   }
 
-  function livreOuvert(livre) {
+  function livreOuvert(livre, cle) {
     etat.livre = livre;
+    etat.cle = cle;
+    chargerListeIllustrations();
     document.title = livre.titre;
     document.querySelectorAll(".titre-livre").forEach((h) => (h.textContent = livre.titre));
     if (marque && !(marque.c >= 0 && marque.c < livre.chapitres.length)) marque = null;
@@ -269,63 +274,202 @@
     const m = marque || { c: 0, p: -1 };
     afficherChapitre(m.c, { para: m.p, calme: true });
     await voyage(etat.livre.chapitres[m.c]);
-    if (etat.page === 0) jouerEncre();
+    if (etat.page === etat.pageTitre) jouerEncre();
     if (mode === "ecouter") demarrerLecture(m.c === etat.chap ? m.p : -1);
   }
 
-  /* ---------- Entrée dans le livre : on parcourt la couverture, puis on plonge dans l'œil du loup ---------- */
+  /* ---------- Entrée dans le livre : on traverse la couverture, couche après couche, jusqu'à l'œil du loup ---------- */
 
-  // Points de la couverture (en fraction de l'image) et grossissement
-  const ETAPES_VOYAGE = [
-    { o: 0,    x: 0.5,  y: 0.5,  z: 1 },
-    { o: 0.12, x: 0.5,  y: 0.5,  z: 1.04 },
-    { o: 0.3,  x: 0.2,  y: 0.235, z: 2.7 },   // la lune
-    { o: 0.5,  x: 0.41, y: 0.53, z: 2.2 },    // le visage
-    { o: 0.74, x: 0.62, y: 0.705, z: 3 },     // l'œil du loup
-    { o: 1,    x: 0.62, y: 0.705, z: 18 },
+  const COUV_L = 1023, COUV_H = 1537;
+  // r : [x, y, largeur, hauteur] dans la couverture ; d : distance (plus grand = plus loin)
+  // e : sens dans lequel la couche s'écarte quand on s'en approche
+  const COUCHES = [
+    { nom: "papier",     r: [0, 0, 1023, 1537],    d: 14,  e: [0, 0] },
+    { nom: "cadre",      r: [9, 0, 1006, 1537],    d: 8,   e: [0, 0] },
+    { nom: "centre",     r: [289, 237, 493, 1031], d: 4.6, e: [0, 0] },
+    { nom: "lune",       r: [97, 246, 237, 254],   d: 3.2, e: [-1, -0.6] },
+    { nom: "soleil",     r: [691, 240, 252, 260],  d: 3.0, e: [1, -0.6] },
+    { nom: "vegetal-g",  r: [36, 28, 485, 1482],   d: 2.5, e: [-1, 0] },
+    { nom: "vegetal-d",  r: [504, 28, 484, 1482],  d: 2.3, e: [1, 0] },
+    { nom: "monogramme", r: [350, 1207, 325, 330], d: 2.0, e: [0, 1] },
+    { nom: "titre",      r: [58, 38, 908, 223],    d: 1.6, e: [0, -1] },
   ];
+  const CIBLE = { x: 0.62 * COUV_L, y: 0.705 * COUV_H };  // l'œil du loup
+  const Z_FIN = 4.45;                                      // on s'arrête juste avant la couche du centre
+  const lisse = (k) => k * k * (3 - 2 * k);
+  let couches = null, poussiere = null;
+
+  function preparerCouches() {
+    if (couches) return couches;
+    const scene = $("voyage-scene");
+    couches = COUCHES.map((c) => {
+      const i = new Image();
+      i.alt = "";
+      i.decoding = "async";
+      i.src = "images/couches/" + c.nom + (c.nom === "papier" ? ".jpg" : ".webp");
+      i.style.width = c.r[2] + "px";
+      i.style.height = c.r[3] + "px";
+      scene.appendChild(i);
+      return i;
+    });
+    poussiere = Array.from({ length: 140 }, () => ({
+      x: (Math.random() * 1.6 - 0.3) * COUV_L, y: (Math.random() * 1.4 - 0.2) * COUV_H,
+      d: 1.1 + Math.random() * 5.5, r: 0.6 + Math.random() * 1.6, a: 0.25 + Math.random() * 0.45, ph: Math.random() * 6.28,
+    }));
+    return couches;
+  }
+
+  function poserVoyage(t) {
+    const lw = window.innerWidth, lh = window.innerHeight;
+    const base = Math.min(lw / COUV_L, lh / COUV_H) * 0.9;
+    const k = Math.max(0, (t - 0.12) / 0.88);       // un temps immobile, puis on avance de plus en plus vite
+    const zc = Z_FIN * Math.pow(k, 1.8);
+    const g = lisse(Math.min(1, k * 1.1));
+    const fx = COUV_L / 2 + (CIBLE.x - COUV_L / 2) * g + Math.sin(k * Math.PI) * 0.04 * COUV_L;   // léger arc
+    const fy = COUV_H / 2 + (CIBLE.y - COUV_H / 2) * g;
+    $("voyage-scene").style.transform = "rotate(" + (Math.sin(k * Math.PI) * 1.6) + "deg)";
+    COUCHES.forEach((c, n) => {
+      const s = c.d / Math.max(c.d - zc, 0.02);
+      const e = base * s;
+      const pousse = (s - 1) * base * 70;           // les éléments s'écartent en plus de grossir
+      const img = couches[n];
+      img.style.transform = "translate(" + (lw / 2 + (c.r[0] - fx) * e + c.e[0] * pousse) + "px," +
+        (lh / 2 + (c.r[1] - fy) * e + c.e[1] * pousse) + "px) scale(" + e + ")";
+      img.style.opacity = Math.max(0, Math.min(1, (c.d - zc - 0.15) / 0.55));
+      // profondeur de champ : ce qui passe tout près devient flou
+      const flou = c.d < 3.5 ? Math.min(7, Math.max(0, (s - 1.7) * 2.2)) : 0;
+      img.style.filter = flou > 0.2 ? "blur(" + (flou / e).toFixed(2) + "px)" : "";
+    });
+    // poussière en suspension entre les couches
+    const toile = $("voyage-poussiere"), ctx = toile.getContext("2d");
+    const dpr = window.devicePixelRatio || 1;
+    if (toile.width !== Math.round(lw * dpr)) { toile.width = Math.round(lw * dpr); toile.height = Math.round(lh * dpr); }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, lw, lh);
+    ctx.fillStyle = "#5a4630";
+    poussiere.forEach((p) => {
+      const reste = p.d - zc;
+      if (reste < 0.12) return;
+      const s = p.d / reste, e = base * s;
+      const x = lw / 2 + (p.x - fx) * e, y = lh / 2 + (p.y - fy) * e + Math.sin(t * 6 + p.ph) * 3;
+      if (x < -20 || x > lw + 20 || y < -20 || y > lh + 20) return;
+      ctx.globalAlpha = p.a * Math.min(1, (reste - 0.12) / 0.5) * Math.min(1, k * 4);
+      ctx.beginPath(); ctx.arc(x, y, p.r * Math.min(s, 6), 0, 6.283); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    // fondu au noir : les bords d'abord, puis le centre
+    const bord = lisse(Math.min(1, Math.max(0, (t - 0.3) / 0.45)));
+    const coeur = lisse(Math.min(1, Math.max(0, (t - 0.6) / 0.3)));
+    $("voyage-noir").style.background =
+      "radial-gradient(ellipse 75% 60% at 50% 50%, rgba(8,6,4," + coeur + ") 0%, rgba(8,6,4," +
+      Math.max(coeur, bord * 0.85) + ") 55%, rgba(8,6,4," + bord + ") 100%)";
+  }
 
   function voyage(ch) {
-    const ecran = $("voyage"), img = $("voyage-img");
-    if (!effets() || !img.complete || !img.naturalWidth) return Promise.resolve();
-    return new Promise((fini) => {
-      const lw = window.innerWidth, lh = window.innerHeight;
-      const iw = img.naturalWidth, ih = img.naturalHeight;
-      const base = Math.min(lw / iw, lh / ih);
-      img.style.width = iw + "px";
-      const images = ETAPES_VOYAGE.map((e) => {
-        const k = base * e.z;
-        return { offset: e.o, easing: "ease-in-out",
-          transform: "translate(" + (lw / 2 - e.x * iw * k) + "px," + (lh / 2 - e.y * ih * k) + "px) scale(" + k + ")" };
-      });
-      const titre = $("voyage-titre");
-      titre.querySelector(".num").textContent = ch.label;
-      titre.querySelector(".titre").textContent = ch.titre;
-      titre.classList.remove("vu");
-      ecran.classList.remove("fin");
-      ecran.hidden = false;
-      const duree = 7000;
-      const a = img.animate(images, { duration: duree, fill: "forwards" });
-      const fondu = img.animate([{ opacity: 1, offset: 0 }, { opacity: 1, offset: 0.82 }, { opacity: 0, offset: 1 }], { duration: duree, fill: "forwards" });
-      const minuteur = setTimeout(() => titre.classList.add("vu"), duree * 0.8);
-      let termine = false;
-      const terminer = () => {
+    if (!effets() || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return Promise.resolve();
+    const ecran = $("voyage"), titre = $("voyage-titre");
+    const imgs = preparerCouches();
+    titre.querySelector(".num").textContent = ch.label;
+    titre.querySelector(".titre").textContent = ch.titre;
+    titre.classList.remove("vu", "jour");
+    ecran.classList.remove("fin", "jour");
+    ecran.hidden = false;
+    let termine = false, anim = 0, fini;
+    const promesse = new Promise((r) => (fini = r));
+    const terminer = () => {
+      if (termine) return;
+      termine = true;
+      cancelAnimationFrame(anim);
+      titre.classList.add("vu");
+      ecran.classList.add("fin");
+      setTimeout(() => { ecran.hidden = true; fini(); }, 650);
+    };
+    $("voyage-passer").onclick = terminer;
+    ecran.onpointerdown = (ev) => { if (ev.target.id !== "voyage-passer") terminer(); };
+    // On attend les couches (deux secondes au plus), sinon on entre directement
+    const pretes = Promise.all(imgs.map((i) => i.decode().then(() => true, () => false)));
+    Promise.race([pretes, attendre(2000).then(() => null)]).then((ok) => {
+      if (termine) return;
+      if (!ok || ok.includes(false)) { terminer(); return; }
+      poserVoyage(0);
+      const duree = 8000;
+      let t0 = 0;
+      const pas = (now) => {
         if (termine) return;
-        termine = true;
-        clearTimeout(minuteur);
-        titre.classList.add("vu");
-        ecran.classList.add("fin");
-        setTimeout(() => {
-          ecran.hidden = true;
-          a.cancel(); fondu.cancel();
-          fini();
-        }, 650);
+        if (!t0) t0 = now;
+        const t = Math.min(1, (now - t0) / duree);
+        poserVoyage(t);
+        if (t > 0.86) titre.classList.add("vu");
+        if (t < 1) { anim = requestAnimationFrame(pas); return; }
+        // le noir s'éclaire en page de papier, le titre passe à l'encre, puis on découvre le livre
+        ecran.classList.add("jour");
+        titre.classList.add("jour");
+        setTimeout(terminer, 1300);
       };
-      a.onfinish = () => setTimeout(terminer, 700);
-      $("voyage-passer").onclick = terminer;
-      ecran.onpointerdown = (ev) => { if (ev.target.id !== "voyage-passer") terminer(); };
+      setTimeout(() => { if (!termine) anim = requestAnimationFrame(pas); }, 400);
     });
+    return promesse;
   }
+
+  /* ---------- Illustrations des chapitres ---------- */
+
+  const imagesPretes = new Map();   // numéro -> promesse de l'adresse de l'image
+
+  async function chargerListeIllustrations() {
+    try {
+      const r = await fetch("images/illustrations/liste.json", { cache: "no-cache" });
+      if (!r.ok) return;
+      etat.illus = await r.json();
+    } catch (e) {
+      return;
+    }
+    // la liste arrive après l'ouverture : on refait le chapitre affiché s'il a une illustration
+    if (!$("liseuse").hidden && etat.illus[etat.livre.chapitres[etat.chap].num] && !$("flux").querySelector(".frontispice")) {
+      const para = blocVisible();
+      afficherChapitre(etat.chap, { para: para, calme: true });
+    }
+  }
+
+  function illustration(num) {
+    const nom = etat.illus[num];
+    if (!nom) return Promise.reject(new Error("pas d'illustration"));
+    if (!imagesPretes.has(num)) {
+      const p = (async () => {
+        const chemin = "images/illustrations/" + nom;
+        if (!/\.bin$/.test(nom)) return chemin;
+        if (!etat.cle) throw new Error("clé absente");
+        const r = await fetch(chemin);
+        if (!r.ok) throw new Error("illustration introuvable");
+        const octets = new Uint8Array(await r.arrayBuffer());
+        const clair = await crypto.subtle.decrypt({ name: "AES-GCM", iv: octets.slice(0, 12) }, etat.cle, octets.slice(12));
+        return URL.createObjectURL(new Blob([clair], { type: "image/webp" }));
+      })();
+      p.catch(() => imagesPretes.delete(num));
+      imagesPretes.set(num, p);
+    }
+    return imagesPretes.get(num);
+  }
+
+  function poserIllustration(ch) {
+    const fig = $("flux").querySelector(".frontispice");
+    if (!fig) return;
+    illustration(ch.num).then((src) => {
+      const img = fig.querySelector("img");
+      img.onload = () => fig.classList.add("prete");
+      img.src = src;
+    }, () => fig.classList.add("absente"));
+  }
+
+  // Un toucher au milieu de la page de l'illustration l'ouvre en grand
+  function ouvrirPlanche() {
+    const img = $("flux").querySelector(".frontispice.prete img");
+    if (!img || pageDeRect(img.parentNode.getClientRects()) !== etat.page) return false;
+    const planche = $("planche");
+    planche.querySelector("img").src = img.src;
+    planche.hidden = false;
+    return true;
+  }
+  $("planche").addEventListener("click", () => ($("planche").hidden = true));
 
   function reglerMode(mode) {
     etat.mode = mode;
@@ -357,6 +501,7 @@
 
   function construireChapitre(ch) {
     const morceaux = [
+      etat.illus[ch.num] ? '<figure class="frontispice"><img alt=""></figure>' : "",
       '<div class="entete-chapitre">',
       '<div class="num">' + echapper(ch.label) + "</div>",
       "<h1>" + titreEnLettres(ch.titre) + "</h1>",
@@ -412,13 +557,15 @@
     flux.innerHTML = construireChapitre(ch);
     etat.paras = Array.from(flux.querySelectorAll("p[data-i]"));
     paginer();
+    poserIllustration(ch);
+    if (c + 1 < etat.livre.chapitres.length) illustration(etat.livre.chapitres[c + 1].num).catch(() => {});
 
     let page = 0;
     if (options.fin) page = etat.nbPages - 1;
     else if (options.para != null && options.para >= 0) page = pageDuBloc(options.para);
     else if (options.page != null) page = options.page;
     allerPage(page, false);
-    if (page === 0 && !options.calme) jouerEncre();
+    if (page === etat.pageTitre && !options.calme) jouerEncre();
 
     $("pied-chap").textContent = ch.num === 0 ? ch.titre : ch.label + " · " + ch.titre;
     $("barre-titre").textContent = nomChapitre(ch) + " · " + ch.titre;
@@ -444,6 +591,8 @@
     flux.style.transform = "translateX(0)";
     const dernier = flux.lastElementChild;
     etat.nbPages = dernier ? pageDeRect(dernier.getClientRects(), true) + 1 : 1;
+    const entete = flux.querySelector(".entete-chapitre");
+    etat.pageTitre = entete ? pageDeRect(entete.getClientRects()) : 0;
     $("curseur").max = Math.max(etat.nbPages - 1, 0);
   }
 
@@ -504,7 +653,11 @@
   // Change de page sans animation (la feuille 3D s'en charge), ou en glissant
   // Renvoie true si l'on vient de commencer un nouveau chapitre
   function avancer(anime) {
-    if (etat.page < etat.nbPages - 1) { allerPage(etat.page + 1, anime); return false; }
+    if (etat.page < etat.nbPages - 1) {
+      allerPage(etat.page + 1, anime);
+      if (etat.page === etat.pageTitre) jouerEncre();  // on quitte l'illustration pour le titre
+      return false;
+    }
     afficherChapitre(etat.chap + 1);
     return true;
   }
@@ -790,7 +943,7 @@
     const tiers = window.innerWidth / 3;
     if (ev.clientX < tiers) { arreterLecture(); pagePrecedente(); }
     else if (ev.clientX > 2 * tiers) { arreterLecture(); pageSuivante(); }
-    else afficherBarre();
+    else if (!ouvrirPlanche()) afficherBarre();
   });
   zone.addEventListener("pointercancel", () => {
     geste.actif = false;

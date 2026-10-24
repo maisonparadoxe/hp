@@ -26,7 +26,8 @@ Sur le téléphone : ouvrir l'adresse, taper le mot de passe (cocher « Se souve
 ## Effets
 
 - Écran du mot de passe : la couverture, puis une phrase qui s'écrit à l'encre façon carte du Maraudeur. Toucher l'écran fait tout apparaître tout de suite.
-- En ouvrant le livre (Lire ou Écouter) : un voyage dans la couverture (la lune, le visage, puis l'œil du loup), qui plonge vers la page. Toucher l'écran ou « Passer » l'abrège.
+- En ouvrant le livre (Lire ou Écouter) : on traverse la couverture, découpée en couches (`images/couches/`) qui s'écartent à des vitesses différentes, jusqu'à l'œil du loup ; tout s'éteint dans le noir, le titre du chapitre apparaît, puis la page. Toucher l'écran ou « Passer » l'abrège.
+- Illustrations : une page entière avant le titre des chapitres qui en ont une ; un toucher au milieu de cette page l'ouvre en grand.
 - Début de chapitre : le titre se dépose à l'encre, l'ornement se trace, la première lettre devient une lettrine aux couleurs de la maison.
 - Papier vieilli et bords assombris ; en mode nuit, une lueur de bougie qui vacille à peine.
 - Paillettes dorées au choix de la maison et à chaque fin de chapitre.
@@ -43,7 +44,17 @@ python3 outils/build.py --source ../knowledge --sortie book.enc.json
 
 Le mot de passe est demandé au clavier. Puis remplacer `book.enc.json` dans le dépôt GitHub. Après une mise à jour, le téléphone redemandera le mot de passe une fois.
 
-Pour changer de mot de passe : relancer la même commande avec le nouveau.
+Pour changer de mot de passe : relancer la même commande avec le nouveau (et refaire les illustrations, ci-dessous).
+
+## Illustrations des chapitres
+
+Les images sources s'appellent `chapitreNN.png` (NN = numéro du chapitre dans la version actuelle). Pour les préparer (Python 3, `Pillow` et `cryptography`) :
+
+```
+python3 outils/illustrations.py --source ../illustrations --chiffrer
+```
+
+Elles sont réduites, converties en WebP et, avec `--chiffrer`, chiffrées avec la clé du livre (le script demande le mot de passe et le vérifie sur `book.enc.json`). Le résultat va dans `images/illustrations/` avec `liste.json`. Sans `--chiffrer`, les images restent lisibles par n'importe qui connaissant leur adresse. À refaire après chaque nouveau `book.enc.json`, car le sel change.
 
 ## Musique (plus tard)
 
