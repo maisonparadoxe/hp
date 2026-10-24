@@ -23,6 +23,16 @@ Sur le téléphone : ouvrir l'adresse, taper le mot de passe (cocher « Se souve
 - Lecture à voix haute : elle commence au marque-page ou à la page affichée, surligne le paragraphe lu, tourne les pages et enchaîne les chapitres. L'écran reste allumé pendant la lecture (si l'écran se verrouille, la voix s'arrête : c'est une limite des navigateurs). La voix et la vitesse se règlent dans **Aa**. Les voix disponibles dépendent du téléphone ; sur Android, les voix Google « français (France) » sont les plus naturelles (Paramètres > Synthèse vocale).
 - **Verrouiller et oublier cet appareil** (dans Aa) efface la clé mémorisée.
 
+## Effets
+
+- Écran du mot de passe : la couverture, puis une phrase qui s'écrit à l'encre façon carte du Maraudeur. Toucher l'écran fait tout apparaître tout de suite.
+- En ouvrant le livre (Lire ou Écouter) : un voyage dans la couverture (la lune, le visage, puis l'œil du loup), qui plonge vers la page. Toucher l'écran ou « Passer » l'abrège.
+- Début de chapitre : le titre se dépose à l'encre, l'ornement se trace, la première lettre devient une lettrine aux couleurs de la maison.
+- Papier vieilli et bords assombris ; en mode nuit, une lueur de bougie qui vacille à peine.
+- Paillettes dorées au choix de la maison et à chaque fin de chapitre.
+- La page se soulève et tourne en 3D, elle suit le doigt et retombe si on la lâche avant la moitié.
+- Tout se coupe dans **Aa > Effets visuels** (coupé d'office si le téléphone demande moins d'animations).
+
 ## Mettre à jour le texte du livre
 
 Quand le manuscrit change, il faut regénérer `book.enc.json` (Python 3 et le paquet `cryptography` requis) :

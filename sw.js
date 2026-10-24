@@ -1,7 +1,8 @@
 /* Permet de relire le livre sans connexion une fois qu'il a été ouvert. */
-const CACHE = "liseuse-v2";
+const CACHE = "liseuse-v3";
 const COQUILLE = ["./", "index.html", "style.css", "app.js", "manifest.webmanifest", "icon.svg",
-  "polices/literata-latin-400-normal.woff2", "polices/literata-latin-400-italic.woff2"];
+  "polices/literata-latin-400-normal.woff2", "polices/literata-latin-400-italic.woff2",
+  "polices/im-fell-english-400-normal.woff2", "polices/im-fell-english-400-italic.woff2", "images/couverture.jpg"];
 
 self.addEventListener("install", (ev) => {
   ev.waitUntil(caches.open(CACHE).then((c) => c.addAll(COQUILLE)).then(() => self.skipWaiting()));

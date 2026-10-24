@@ -8,6 +8,16 @@
   src: url("polices/literata-latin-400-italic.woff2") format("woff2");
   font-weight: 400; font-style: italic; font-display: swap;
 }
+@font-face {
+  font-family: "IM Fell English";
+  src: url("polices/im-fell-english-400-normal.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "IM Fell English";
+  src: url("polices/im-fell-english-400-italic.woff2") format("woff2");
+  font-weight: 400; font-style: italic; font-display: swap;
+}
 
 :root {
   --fond: #f4ecd8;
@@ -25,8 +35,19 @@
   --marge-bas: 40px;
   --gouttiere: 40px;
   --haut-lecteur: 0px;
+  --plume: "IM Fell English", "Literata", Georgia, serif;
+  /* couleurs du marque-page, remplacées par celles de la maison */
+  --tissu: #7f0909;
+  --liseres: #d3a625;
+  /* papier vieilli : grain fin et taches légères, dessinés par le navigateur (aucun fichier) */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .12 0 0 0 .32 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --taches: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='t'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .35 0 0 0 0 .15 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23t)'/%3E%3C/svg%3E");
+  --papier: var(--grain), var(--taches), var(--fond);
+  --vignette: inset 0 0 70px rgba(90, 60, 20, .28);
 }
 :root[data-theme="clair"] {
+  --papier: var(--fond);
+  --vignette: none;
   --fond: #ffffff;
   --texte: #1d1d1d;
   --doux: #6f6f6f;
@@ -35,6 +56,9 @@
   --surligne: rgba(255, 210, 90, 0.35);
 }
 :root[data-theme="nuit"] {
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .12 0 0 0 .10 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --taches: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='t'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .35 0 0 0 0 .15 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23t)'/%3E%3C/svg%3E");
+  --vignette: inset 0 0 90px rgba(0, 0, 0, .55);
   --fond: #14120f;
   --texte: #cdc4b2;
   --doux: #857c6c;
@@ -43,12 +67,13 @@
   --surligne: rgba(201, 154, 98, 0.18);
 }
 body.mode-ecouter { --haut-lecteur: 118px; }
+:root.sans-effets { --papier: var(--fond); --vignette: none; }
 
 * { box-sizing: border-box; }
 html, body {
   margin: 0;
   height: 100%;
-  background: var(--fond);
+  background: var(--papier);
   color: var(--texte);
   font-family: "Literata", Georgia, "Iowan Old Style", "Noto Serif", serif;
   -webkit-text-size-adjust: 100%;
@@ -58,6 +83,21 @@ html, body {
 }
 button, input, select { font: inherit; color: inherit; }
 button { background: none; border: 0; cursor: pointer; padding: 0; }
+body { background: transparent; }
+/* Bords assombris ; la nuit, une lueur de bougie qui vacille à peine */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  box-shadow: var(--vignette);
+}
+:root[data-theme="nuit"]:not(.sans-effets) body::before {
+  background: radial-gradient(120% 65% at 50% 0%, rgba(255, 170, 80, .11), rgba(255, 140, 60, .035) 45%, transparent 70%);
+  animation: bougie 6s infinite;
+}
+@keyframes bougie {
+  0%, 100% { opacity: .85; } 12% { opacity: 1; } 21% { opacity: .78; } 34% { opacity: .95; }
+  47% { opacity: .82; } 61% { opacity: 1; } 74% { opacity: .88; } 87% { opacity: .97; }
+}
+.invisible { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 [hidden] { display: none !important; }
 
@@ -70,10 +110,28 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
 }
 #form-verrou {
   width: 100%; max-width: 320px;
-  display: flex; flex-direction: column; gap: 14px;
-  text-align: center;
+  display: flex; flex-direction: column; gap: 14px; align-items: center;
+  text-align: center; position: relative;
 }
-.ornement { font-size: 42px; color: var(--encre); margin-bottom: 8px; }
+.champs-verrou { width: 100%; display: flex; flex-direction: column; gap: 14px; transition: opacity .8s; }
+.champs-verrou.cache { opacity: 0; pointer-events: none; }
+.couverture {
+  display: block; height: auto; width: auto;
+  max-width: 100%; max-height: min(44vh, 400px);
+  aspect-ratio: 1023 / 1537;
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.18), 0 8px 22px rgba(60,40,10,.22);
+}
+:root[data-theme="nuit"] .couverture { filter: brightness(.82) sepia(.15); box-shadow: 0 8px 26px rgba(0,0,0,.6); }
+/* Phrase écrite à l'encre, comme sur la carte du Maraudeur */
+.serment { font-family: var(--plume); font-style: italic; font-size: 20px; line-height: 1.35; min-height: 2.7em; color: var(--encre); }
+.serment span { opacity: 0; filter: blur(3px); transition: opacity .5s, filter .6s; }
+.serment span.vu { opacity: 1; filter: none; }
+.serment.efface span { opacity: 0; filter: blur(4px); transition-duration: 1s; }
+.pas { position: absolute; left: -10%; right: -10%; bottom: 0; height: 140px; pointer-events: none; }
+.pas i { position: absolute; width: 7px; height: 13px; border-radius: 50% 50% 45% 45%; background: var(--encre); opacity: 0; }
+.pas.marche i { animation: pas 2.6s ease-out forwards; }
+@keyframes pas { 0% { opacity: 0; } 12% { opacity: .5; } 70% { opacity: .3; } 100% { opacity: 0; } }
 #form-verrou label { color: var(--doux); font-size: 15px; }
 #mdp {
   padding: 13px 14px; font-size: 18px; text-align: center;
@@ -106,16 +164,18 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
 .ruban-carte { display: block; width: 34px; height: 92px; }
 .ruban-carte svg, #grand-ruban svg, #ruban svg { width: 100%; height: 100%; stroke: none; display: block; }
 
-#accueil-mode { padding-top: 70px; position: relative; }
+#accueil-mode { padding-top: 64px; position: relative; display: flex; flex-direction: column; align-items: center; }
+#accueil-mode .couverture { max-height: min(40vh, 380px); margin-bottom: 4px; }
 #grand-ruban {
   position: fixed; top: 0; left: 50%; width: 42px; height: 120px;
   transform: translateX(-50%);
   filter: drop-shadow(0 2px 3px rgba(0,0,0,.25));
+  z-index: 2;
   animation: descend .7s cubic-bezier(.3,1.4,.5,1) both;
 }
 #ou-reprendre { color: var(--doux); margin: 6px 0 30px; line-height: 1.5; }
 #ou-reprendre b { color: var(--texte); font-weight: normal; font-style: italic; }
-.choix-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.choix-mode { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .gros {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
   min-height: 120px; border-radius: 16px; font-size: 18px;
@@ -135,7 +195,7 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
   position: fixed; inset: 0;
   touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
 }
-#cadre {
+#cadre, .cadre-copie {
   position: absolute;
   top: calc(var(--marge-haut) + env(safe-area-inset-top));
   bottom: calc(var(--marge-bas) + var(--haut-lecteur) + env(safe-area-inset-bottom));
@@ -143,7 +203,7 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
   right: calc(var(--marge-x) + env(safe-area-inset-right));
   overflow: hidden;
 }
-#flux {
+.flux {
   height: 100%;
   column-fill: auto;
   column-gap: var(--gouttiere);
@@ -158,12 +218,12 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
   text-rendering: optimizeLegibility;
   will-change: transform;
 }
-#flux.anime { transition: transform .3s cubic-bezier(.2,.7,.3,1); }
-#flux p { margin: 0; text-indent: 1.3em; orphans: 2; widows: 2; }
-#flux p.premier, #flux p.apres-scene { text-indent: 0; }
-#flux p.premier::first-letter { font-size: 2.1em; line-height: 1; color: var(--encre); padding-right: 1px; }
-#flux .scene { text-align: center; color: var(--doux); margin: .8em 0; text-indent: 0; break-inside: avoid; }
-#flux p.lu { background: var(--surligne); border-radius: 3px; box-shadow: 0 0 0 3px var(--surligne); }
+.flux.anime { transition: transform .3s cubic-bezier(.2,.7,.3,1); }
+.flux p { margin: 0; text-indent: 1.3em; orphans: 2; widows: 2; }
+.flux p.premier, .flux p.apres-scene { text-indent: 0; }
+.flux p.premier:not(.orne)::first-letter { font-size: 2.1em; line-height: 1; color: var(--encre); padding-right: 1px; }
+.flux .scene { text-align: center; color: var(--doux); margin: .8em 0; text-indent: 0; break-inside: avoid; }
+.flux p.lu { background: var(--surligne); border-radius: 3px; box-shadow: 0 0 0 3px var(--surligne); }
 
 .entete-chapitre {
   break-after: column;
@@ -175,10 +235,35 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
 }
 .entete-chapitre .num { font-size: .8em; letter-spacing: .25em; text-transform: uppercase; color: var(--doux); }
 .entete-chapitre h1 { font-weight: normal; font-size: 1.55em; line-height: 1.25; margin: .6em 0; text-wrap: balance; }
-.entete-chapitre .orn { color: var(--encre); font-size: 1.3em; }
+.entete-chapitre .orn { display: block; width: 6.5em; height: 1em; color: var(--encre); }
+.entete-chapitre .orn path { fill: none; stroke: currentColor; stroke-width: 1.2; }
+/* Arrivée sur un chapitre : le titre se dépose à l'encre, l'ornement se trace à la plume */
+.entete-chapitre .mot { white-space: nowrap; }
+.entete-chapitre.encre .num { animation: apparait 1s .1s both; }
+.entete-chapitre.encre .l { animation: encre .9s both; animation-delay: calc(var(--i) * 55ms + .45s); }
+.entete-chapitre.encre .orn path { stroke-dasharray: 260; animation: trace 1.4s both; animation-delay: var(--fin-titre, 1.5s); }
+.entete-chapitre.encre .titre-livre-petit { animation: apparait 1s both; animation-delay: var(--fin-titre, 1.5s); }
+@keyframes encre {
+  0% { opacity: 0; color: transparent; text-shadow: 0 0 10px var(--texte); }
+  45% { opacity: 1; }
+  100% { opacity: 1; color: var(--texte); text-shadow: 0 0 0 transparent; }
+}
+@keyframes trace { from { stroke-dashoffset: 260; } to { stroke-dashoffset: 0; } }
+/* Lettrine aux couleurs de la maison */
+.flux .lettrine {
+  float: left;
+  width: 1.42em; height: 1.42em;
+  margin: .1em .2em 0 0;
+  display: flex; align-items: center; justify-content: center;
+  font: 2.15em/1 var(--plume);
+  color: var(--liseres); background: var(--tissu);
+  border: 2px solid var(--liseres);
+  outline: 1px solid var(--tissu); outline-offset: 2px;
+  text-indent: 0;
+}
 .entete-chapitre .titre-livre-petit { margin-top: 2.5em; font-size: .8em; color: var(--doux); font-style: italic; }
 
-#pied {
+#pied, .pied-copie {
   position: absolute;
   left: calc(var(--marge-x) + env(safe-area-inset-left));
   right: calc(var(--marge-x) + env(safe-area-inset-right));
@@ -187,11 +272,11 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
   font-size: 12px; color: var(--doux);
   pointer-events: none;
 }
-#pied-chap { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding-right: 12px; }
+#pied-chap, .pied-copie span:first-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding-right: 12px; }
 
 /* Marque-page posé sur la page : un ruban qui pend dans la marge de droite */
 #ruban {
-  position: absolute; top: 0;
+  position: absolute; top: 0; z-index: 5;
   right: calc(env(safe-area-inset-right) + max(4px, (var(--marge-x) - 16px) / 2));
   width: 16px; height: 92px;
   pointer-events: none;
@@ -200,6 +285,49 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
   transition: transform .45s cubic-bezier(.3,1.3,.5,1);
 }
 #ruban.visible { transform: translateY(0); }
+
+/* ---------- Page qui tourne en 3D ---------- */
+#liseuse { perspective: 2200px; }
+.feuille, .dessous { position: absolute; inset: 0; pointer-events: none; }
+.dessous { z-index: 3; background: var(--papier); }
+.ombre-tourne { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0;
+  background: linear-gradient(to right, rgba(0,0,0,.3), rgba(0,0,0,0) 65%); }
+.feuille { z-index: 4; transform-origin: left center; transform-style: preserve-3d; will-change: transform; }
+.feuille .recto, .feuille .verso { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; background: var(--papier); overflow: hidden; }
+.feuille .recto::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(to left, rgba(0,0,0,calc(var(--p, 0) * .22)), rgba(0,0,0,0) 45%); }
+.feuille .verso { transform: rotateY(180deg); }
+.feuille .verso::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(to left, rgba(0,0,0,.16), rgba(0,0,0,.05) 40%, rgba(255,255,255,.04)); }
+
+/* ---------- Entrée dans le livre ---------- */
+#voyage {
+  position: fixed; inset: 0; z-index: 30; overflow: hidden;
+  background: var(--papier);
+  transition: opacity .6s;
+}
+#voyage.fin { opacity: 0; }
+#voyage-img { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; will-change: transform; }
+:root[data-theme="nuit"] #voyage-img { filter: brightness(.82) sepia(.15); }
+#voyage-titre {
+  position: absolute; left: 24px; right: 24px; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
+  opacity: 0; transition: opacity 1s; pointer-events: none;
+}
+#voyage-titre.vu { opacity: 1; }
+#voyage-titre .num { font-size: 13px; letter-spacing: .3em; text-transform: uppercase; color: var(--doux); }
+#voyage-titre .titre { font: italic 28px/1.25 var(--plume); color: var(--texte); text-wrap: balance; }
+#voyage-passer {
+  position: absolute; right: calc(16px + env(safe-area-inset-right)); bottom: calc(18px + env(safe-area-inset-bottom));
+  padding: 8px 16px; border-radius: 999px; font-size: 14px;
+  background: rgba(20, 16, 10, .45); color: #f4ecd8;
+}
+
+#paillettes { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 40; pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="nuit"] body::before { animation: none; }
+}
 
 /* ---------- Lecteur audio ---------- */
 #lecteur {
