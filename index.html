@@ -186,12 +186,18 @@
   </div>
 </main>
 
-<!-- Entrée dans le livre : voyage dans l'illustration -->
+<!-- Entrée dans le livre : on traverse la couverture -->
 <div id="voyage" hidden>
-  <img id="voyage-img" src="images/couverture.jpg" alt="" width="1023" height="1537">
+  <div id="voyage-scene"></div>
+  <canvas id="voyage-poussiere"></canvas>
+  <div id="voyage-noir"></div>
+  <div id="voyage-voile"></div>
   <div id="voyage-titre"><span class="num"></span><span class="titre"></span></div>
   <button id="voyage-passer">Passer</button>
 </div>
+
+<!-- Illustration d'un chapitre, en grand -->
+<div id="planche" hidden><img alt="Illustration du chapitre"></div>
 
 <canvas id="paillettes" aria-hidden="true"></canvas>
 

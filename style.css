@@ -300,6 +300,26 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
 .feuille .verso::after { content: ""; position: absolute; inset: 0;
   background: linear-gradient(to left, rgba(0,0,0,.16), rgba(0,0,0,.05) 40%, rgba(255,255,255,.04)); }
 
+/* ---------- Illustration en tête de chapitre : une page entière ---------- */
+.frontispice {
+  margin: 0; height: 100%;
+  break-after: column; -webkit-column-break-after: always; break-inside: avoid;
+  display: flex; align-items: center; justify-content: center;
+}
+.frontispice img {
+  display: block; max-width: 100%; max-height: 100%; object-fit: contain;
+  border-radius: 2px; box-shadow: 0 1px 6px rgba(40, 30, 15, .25);
+  opacity: 0; transition: opacity .8s;
+}
+.frontispice.prete img { opacity: 1; }
+:root[data-theme="nuit"] .frontispice img { filter: brightness(.85); }
+#planche {
+  position: fixed; inset: 0; z-index: 35; background: rgba(8, 6, 4, .94);
+  display: flex; align-items: center; justify-content: center;
+  padding: calc(12px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));
+}
+#planche img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
 /* ---------- Entrée dans le livre ---------- */
 #voyage {
   position: fixed; inset: 0; z-index: 30; overflow: hidden;
@@ -307,16 +327,22 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
   transition: opacity .6s;
 }
 #voyage.fin { opacity: 0; }
-#voyage-img { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; will-change: transform; }
-:root[data-theme="nuit"] #voyage-img { filter: brightness(.82) sepia(.15); }
+#voyage-scene { position: absolute; inset: 0; overflow: hidden; background: #d9c9b2; }
+#voyage-scene img { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; will-change: transform, opacity; }
+#voyage-poussiere { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#voyage-noir { position: absolute; inset: 0; pointer-events: none; }
+#voyage-voile { position: absolute; inset: 0; background: var(--papier); opacity: 0; pointer-events: none; transition: opacity .9s; }
+#voyage.jour #voyage-voile { opacity: 1; }
 #voyage-titre {
   position: absolute; left: 24px; right: 24px; top: 50%; transform: translateY(-50%);
   display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
   opacity: 0; transition: opacity 1s; pointer-events: none;
 }
 #voyage-titre.vu { opacity: 1; }
-#voyage-titre .num { font-size: 13px; letter-spacing: .3em; text-transform: uppercase; color: var(--doux); }
-#voyage-titre .titre { font: italic 28px/1.25 var(--plume); color: var(--texte); text-wrap: balance; }
+#voyage-titre .num { font-size: 13px; letter-spacing: .3em; text-transform: uppercase; color: #a8987c; transition: color .9s; }
+#voyage-titre .titre { font: italic 28px/1.25 var(--plume); color: #efe5d0; text-wrap: balance; transition: color .9s; }
+#voyage-titre.jour .num { color: var(--doux); }
+#voyage-titre.jour .titre { color: var(--texte); }
 #voyage-passer {
   position: absolute; right: calc(16px + env(safe-area-inset-right)); bottom: calc(18px + env(safe-area-inset-bottom));
   padding: 8px 16px; border-radius: 999px; font-size: 14px;
