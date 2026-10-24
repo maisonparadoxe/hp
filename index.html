@@ -15,6 +15,7 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
 <link rel="preload" href="polices/literata-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="images/couverture.jpg" as="image">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -22,12 +23,16 @@
 <!-- Mot de passe -->
 <section id="verrou" class="ecran">
   <form id="form-verrou" autocomplete="off">
-    <div class="ornement">❦</div>
+    <img class="couverture" src="images/couverture.jpg" alt="Les Ombres du désespoir" width="1023" height="1537">
+    <div id="serment" class="serment" aria-hidden="true"></div>
+    <div id="pas" class="pas" aria-hidden="true"></div>
+    <div id="champs-verrou" class="champs-verrou">
     <label for="mdp">Mot de passe</label>
     <input id="mdp" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false" required>
     <label class="case"><input id="memoriser" type="checkbox" checked> Se souvenir de cet appareil</label>
     <button type="submit" id="btn-ouvrir">Ouvrir</button>
     <p id="msg-verrou" role="alert"></p>
+    </div>
   </form>
 </section>
 
@@ -46,7 +51,8 @@
 
   <div id="accueil-mode" class="accueil-bloc" hidden>
     <div id="grand-ruban"></div>
-    <h1 class="titre-livre"></h1>
+    <img class="couverture" src="images/couverture.jpg" alt="" width="1023" height="1537">
+    <h1 class="titre-livre invisible"></h1>
     <p id="ou-reprendre"></p>
     <div class="choix-mode">
       <button id="btn-mode-lire" class="gros">
@@ -65,7 +71,7 @@
 <!-- Liseuse -->
 <main id="liseuse" hidden>
   <div id="cadre">
-    <div id="flux"></div>
+    <div id="flux" class="flux"></div>
   </div>
   <div id="ruban" aria-hidden="true"></div>
   <div id="pied">
@@ -158,6 +164,10 @@
       <span>Vibration en tournant</span>
       <label class="interrupteur"><input id="opt-vibre" type="checkbox"><span></span></label>
     </div>
+    <div class="reglage ligne">
+      <span>Effets visuels</span>
+      <label class="interrupteur"><input id="opt-effets" type="checkbox" checked><span></span></label>
+    </div>
     <div class="reglage ligne" id="ligne-plein-ecran">
       <span>Plein écran</span>
       <label class="interrupteur"><input id="opt-plein" type="checkbox"><span></span></label>
@@ -175,6 +185,15 @@
     </div>
   </div>
 </main>
+
+<!-- Entrée dans le livre : voyage dans l'illustration -->
+<div id="voyage" hidden>
+  <img id="voyage-img" src="images/couverture.jpg" alt="" width="1023" height="1537">
+  <div id="voyage-titre"><span class="num"></span><span class="titre"></span></div>
+  <button id="voyage-passer">Passer</button>
+</div>
+
+<canvas id="paillettes" aria-hidden="true"></canvas>
 
 <script src="app.js"></script>
 </body>
