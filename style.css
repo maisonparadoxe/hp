@@ -330,7 +330,9 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
 #voyage-scene { position: absolute; inset: 0; overflow: hidden; background: #d9c9b2; }
 #voyage-scene img { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; will-change: transform, opacity; }
 #voyage-poussiere { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-#voyage-noir { position: absolute; inset: 0; pointer-events: none; }
+#voyage-noir, #voyage-nuit { position: absolute; inset: 0; pointer-events: none; opacity: 0; will-change: opacity; }
+#voyage-noir { background: radial-gradient(ellipse 75% 60% at 50% 50%, rgba(8,6,4,0) 0%, rgba(8,6,4,.85) 55%, rgb(8,6,4) 100%); }
+#voyage-nuit { background: rgb(8,6,4); }
 #voyage-voile { position: absolute; inset: 0; background: var(--papier); opacity: 0; pointer-events: none; transition: opacity .9s; }
 #voyage.jour #voyage-voile { opacity: 1; }
 #voyage-titre {

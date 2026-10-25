@@ -298,6 +298,8 @@
   const Z_FIN = 4.45;                                      // on s'arrête juste avant la couche du centre
   const lisse = (k) => k * k * (3 - 2 * k);
   let couches = null, poussiere = null;
+  // Sur téléphone : pas de flou (trop coûteux à recalculer à chaque image), moins de poussière
+  const allege = window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 700;
 
   function preparerCouches() {
     if (couches) return couches;
@@ -312,7 +314,7 @@
       scene.appendChild(i);
       return i;
     });
-    poussiere = Array.from({ length: 140 }, () => ({
+    poussiere = Array.from({ length: allege ? 70 : 140 }, () => ({
       x: (Math.random() * 1.6 - 0.3) * COUV_L, y: (Math.random() * 1.4 - 0.2) * COUV_H,
       d: 1.1 + Math.random() * 5.5, r: 0.6 + Math.random() * 1.6, a: 0.25 + Math.random() * 0.45, ph: Math.random() * 6.28,
     }));
@@ -333,16 +335,23 @@
       const e = base * s;
       const pousse = (s - 1) * base * 70;           // les éléments s'écartent en plus de grossir
       const img = couches[n];
-      img.style.transform = "translate(" + (lw / 2 + (c.r[0] - fx) * e + c.e[0] * pousse) + "px," +
-        (lh / 2 + (c.r[1] - fy) * e + c.e[1] * pousse) + "px) scale(" + e + ")";
-      img.style.opacity = Math.max(0, Math.min(1, (c.d - zc - 0.15) / 0.55));
+      const op = Math.max(0, Math.min(1, (c.d - zc - 0.15) / 0.55));
+      if (op === 0) {   // couche déjà dépassée : on ne la déplace plus
+        if (img.style.visibility !== "hidden") img.style.visibility = "hidden";
+        return;
+      }
+      img.style.transform = "translate3d(" + (lw / 2 + (c.r[0] - fx) * e + c.e[0] * pousse).toFixed(1) + "px," +
+        (lh / 2 + (c.r[1] - fy) * e + c.e[1] * pousse).toFixed(1) + "px,0) scale(" + e.toFixed(4) + ")";
+      img.style.opacity = op.toFixed(3);
+      img.style.visibility = "";
       // profondeur de champ : ce qui passe tout près devient flou
+      if (allege) return;
       const flou = c.d < 3.5 ? Math.min(7, Math.max(0, (s - 1.7) * 2.2)) : 0;
       img.style.filter = flou > 0.2 ? "blur(" + (flou / e).toFixed(2) + "px)" : "";
     });
     // poussière en suspension entre les couches
     const toile = $("voyage-poussiere"), ctx = toile.getContext("2d");
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, allege ? 1.5 : 2);
     if (toile.width !== Math.round(lw * dpr)) { toile.width = Math.round(lw * dpr); toile.height = Math.round(lh * dpr); }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, lw, lh);
@@ -360,9 +369,9 @@
     // fondu au noir : les bords d'abord, puis le centre
     const bord = lisse(Math.min(1, Math.max(0, (t - 0.3) / 0.45)));
     const coeur = lisse(Math.min(1, Math.max(0, (t - 0.6) / 0.3)));
-    $("voyage-noir").style.background =
-      "radial-gradient(ellipse 75% 60% at 50% 50%, rgba(8,6,4," + coeur + ") 0%, rgba(8,6,4," +
-      Math.max(coeur, bord * 0.85) + ") 55%, rgba(8,6,4," + bord + ") 100%)";
+    // (deux calques fixes dont seule l'opacité change : rien à redessiner)
+    $("voyage-noir").style.opacity = bord.toFixed(3);
+    $("voyage-nuit").style.opacity = coeur.toFixed(3);
   }
 
   function voyage(ch) {
